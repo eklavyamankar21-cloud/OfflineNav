@@ -325,8 +325,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 distanceText = String.format(java.util.Locale.US, "%.1f km", onlineResult.distKm)
 
-                                // FIX: Display dynamic elevations for online TomTom routes
-                                routeElevations = generateElevationsForPoints(onlineResult.pathCoords.size)
+                                routeElevations = generateElevationsForPoints(onlineResult.pathCoords.size, onlineResult.distKm)
 
                                 etaDetails = formatTomTomETA(onlineResult.travelTimeSeconds)
                                 currentRouteCoords = onlineResult.pathCoords
@@ -391,8 +390,7 @@ class MainActivity : ComponentActivity() {
                                     currentRouteGeoJson = newRoute
                                     currentRouteCoords = onlineResult.pathCoords
 
-                                    // FIX: Update elevations for recalculated online routes
-                                    routeElevations = generateElevationsForPoints(onlineResult.pathCoords.size)
+                                    routeElevations = generateElevationsForPoints(onlineResult.pathCoords.size, onlineResult.distKm)
 
                                     etaDetails = formatTomTomETA(onlineResult.travelTimeSeconds)
                                     mapLibreMap?.style?.getSourceAs<org.maplibre.android.style.sources.GeoJsonSource>("my-route-source")?.setGeoJson(newRoute)
@@ -620,8 +618,7 @@ class MainActivity : ComponentActivity() {
                                         etaDetails = formatTomTomETA(newOnlineRoute.travelTimeSeconds)
                                         upcomingManeuver = newOnlineRoute.turns.firstOrNull()?.instruction ?: "Follow the highlighted route"
 
-                                        // FIX: Apply elevation generation to swapped alternative online routes
-                                        routeElevations = generateElevationsForPoints(newOnlineRoute.pathCoords.size)
+                                        routeElevations = generateElevationsForPoints(newOnlineRoute.pathCoords.size, newOnlineRoute.distKm)
 
                                         val newPrimaryPoints = newOnlineRoute.pathCoords.map { org.maplibre.geojson.Point.fromLngLat(it.second, it.first) }
                                         val newPrimaryGeoJson = org.maplibre.geojson.FeatureCollection.fromFeature(org.maplibre.geojson.Feature.fromGeometry(org.maplibre.geojson.LineString.fromLngLats(newPrimaryPoints)))
@@ -799,8 +796,26 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+// 1. Re-center FAB placed directly in BoxScope (Top-Right)
+                if (isNavigating) {
+                    FloatingActionButton(
+                        onClick = { mapLibreMap?.locationComponent?.cameraMode = org.maplibre.android.location.modes.CameraMode.TRACKING_GPS },
+                        containerColor = Color.White.copy(alpha = 0.9f),
+                        contentColor = Color(0xFF4A89F3),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 130.dp, end = 16.dp)
+                    ) {
+                        Icon(painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_mylocation), contentDescription = null)
+                    }
+                }
+
+// 2. Control Tools Column (Bottom-Right)
                 Column(
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (routeDrawn || isNavigating) 220.dp else 48.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (routeDrawn || isNavigating) 220.dp else 48.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     FloatingActionButton(onClick = { showInfoDialog = true }, containerColor = Color.White.copy(alpha = 0.9f), contentColor = Color(0xFF4A89F3), shape = CircleShape) {
@@ -814,11 +829,6 @@ class MainActivity : ComponentActivity() {
                     }
                     FloatingActionButton(onClick = { isNightMode = !isNightMode }, containerColor = Color.White.copy(alpha = 0.9f), contentColor = Color.Black, shape = CircleShape) {
                         Text(text = if (isNightMode) "🌙" else "☀️", fontSize = 20.sp)
-                    }
-                    if (isNavigating) {
-                        FloatingActionButton(onClick = { mapLibreMap?.locationComponent?.cameraMode = org.maplibre.android.location.modes.CameraMode.TRACKING_GPS }, containerColor = Color.White.copy(alpha = 0.9f), contentColor = Color(0xFF4A89F3), shape = CircleShape) {
-                            Icon(painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_mylocation), contentDescription = null)
-                        }
                     }
                 }
 
@@ -973,17 +983,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-    }
-
-    // FIX: Generate procedural elevation graph for online routes where 3D points are missing
-    fun generateElevationsForPoints(pointCount: Int): List<Double> {
-        if (pointCount == 0) return emptyList()
-        return List(pointCount) { index ->
-            val progress = index.toDouble() / pointCount
-            val hill1 = 120.0 * Math.sin(progress * Math.PI * 3)
-            val hill2 = 60.0 * Math.cos(progress * Math.PI * 7)
-            480.0 + hill1 + hill2
         }
     }
 
@@ -1276,6 +1275,10 @@ fun ElevationProfileGraph(elevations: List<Double>) {
             drawPath(path = path, color = Color(0xFF4CAF50), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         }
     }
+}
+
+fun generateElevationsForPoints(pointCount: Int, distanceKm: Float): List<Double> {
+    return emptyList()
 }
 
 data class AltRouteData(val pathCoords: List<Pair<Double, Double>>, val distKm: Float, val travelTimeSeconds: Int, val turns: List<NavTurn>)

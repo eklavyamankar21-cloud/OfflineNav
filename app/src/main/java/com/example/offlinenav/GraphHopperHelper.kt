@@ -84,15 +84,7 @@ class GraphHopperHelper(private val context: Context) {
 
             for (i in 0 until points.size()) {
                 coords.add(Pair(points.getLat(i), points.getLon(i)))
-
-                val altitude = if (points.is3D) {
-                    points.getEle(i)
-                } else {
-                    val progress = i.toDouble() / points.size()
-                    val hill1 = 120.0 * Math.sin(progress * Math.PI * 3)
-                    val hill2 = 60.0 * Math.cos(progress * Math.PI * 7)
-                    480.0 + hill1 + hill2
-                }
+                val altitude = if (points.is3D) points.getEle(i) else 0.0
                 elevations.add(altitude)
             }
             return@withContext RouteResult(coords, distance, path.instructions, elevations)
